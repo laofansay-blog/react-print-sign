@@ -1,5 +1,16 @@
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+### 打印表单手工签名的例子
+####浏览器的方式
+pc
+![alt text](image-2.png)
+![alt text](image-1.png)
+手机
+![alt text](image-3.png)
+![alt text](image-4.png)
+
+
+
 ## Getting Started
 
 First, run the development server:
