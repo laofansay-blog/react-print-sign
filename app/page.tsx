@@ -1,11 +1,8 @@
 'use client'
+//@ts-nocheck
 import React, { useRef, useEffect, useState } from 'react';
-
-import escpos from 'escpos';
-import Network from 'escpos-network';
 import ipp from 'ipp';
-
-
+import Image from 'next/image';
 const SignatureComponent = ({ onSave }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -19,6 +16,7 @@ const SignatureComponent = ({ onSave }) => {
     const draw = (x, y) => {
       ctx.beginPath();
       ctx.moveTo(lastX, lastY);
+
       ctx.lineTo(x, y);
       ctx.stroke();
       [lastX, lastY] = [x, y];
@@ -113,7 +111,7 @@ const ReceiptWithSignature = ({ signatureImage, productName }) => {
             <p><strong>商品名称：</strong> ${productName}</p>
             <div class="signature">
               <p><strong>客户签名：</strong></p>
-              <img src="${signatureImage}" alt="Signature" style="width: 100%; max-width: 300px;" />
+              <img src="${signatureImage}" alt="Signature" style="width: 100%; max-width: 300px;">
             </div>
           </div>
         </body>
@@ -149,8 +147,9 @@ const ReceWifiWithSignature = ({ signatureImage, productName }) => {
   const handlePrint = async () => {
     try {
       alert("请改为你的局域网打印机Id")
-      const printer = await ipp.Printer('http://192.168.2.148:9100'); // 替换为你的打印机IP
-
+      return;
+      const printer = null;
+      {/* await ipp.Printer('http://192.168.2.148:9100'); // 替换为你的打印机IP */ }
 
       const fileBuffer = Buffer.from(
         "This is a test print from React application!",
@@ -226,19 +225,20 @@ const App = () => {
           <h1 className="">WiFi 打印示例</h1>
           <p>
             code:
-            const printer = await ipp.Printer('http://192.168.2.148:9100'); // 替换为你的打印机IP
+            const printer = await ipp.Printer(&quothttp://192.168.2.148:9100&quot)  //替换为你的打印机IP
           </p>
 
-          <ReceWifiWithSignature />
+          {/* <ReceWifiWithSignature /> */}
         </main>
 
-        <main className="container mx-auto p-4">
-          <h1 className="">蓝牙 打印示例</h1>
+        <main className="contain
+        er mx-auto p-4">
+          <h1 className="">蓝牙-打印示例</h1>
           <p>
-            暂时没有蓝牙打印机，测试中
+            暂时没有蓝牙打印机测试中
             使用这这个 react-native-esc-pos-printer 库;
-            // 连接到打印机
-            await BluetoothManager.connect('YOUR_PRINTER_MAC_ADDRESS');
+            连接到打印机
+            await BluetoothManager.connect(&#34YOUR_PRINTER_MAC_ADDRESS&#34);
           </p>
         </main>
 
