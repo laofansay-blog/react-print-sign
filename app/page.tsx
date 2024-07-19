@@ -1,113 +1,252 @@
-import Image from "next/image";
+'use client'
+import React, { useRef, useEffect, useState } from 'react';
 
-export default function Home() {
+import escpos from 'escpos';
+import Network from 'escpos-network';
+import ipp from 'ipp';
+
+
+const SignatureComponent = ({ onSave }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let lastX = 0;
+    let lastY = 0;
+
+    const draw = (x, y) => {
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      [lastX, lastY] = [x, y];
+    };
+
+    const startDrawing = (e) => {
+      setIsDrawing(true);
+      [lastX, lastY] = [e.offsetX || e.touches[0].clientX - canvas.offsetLeft,
+      e.offsetY || e.touches[0].clientY - canvas.offsetTop];
+    };
+
+    const stopDrawing = () => {
+      setIsDrawing(false);
+    };
+
+    const drawTouch = (e) => {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const x = touch.clientX - canvas.offsetLeft;
+      const y = touch.clientY - canvas.offsetTop;
+      draw(x, y);
+    };
+
+    const drawMouse = (e) => {
+      if (!isDrawing) return;
+      draw(e.offsetX, e.offsetY);
+    };
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', drawMouse);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    canvas.addEventListener('touchstart', startDrawing);
+    canvas.addEventListener('touchmove', drawTouch);
+    canvas.addEventListener('touchend', stopDrawing);
+
+    return () => {
+      canvas.removeEventListener('mousedown', startDrawing);
+      canvas.removeEventListener('mousemove', drawMouse);
+      canvas.removeEventListener('mouseup', stopDrawing);
+      canvas.removeEventListener('mouseout', stopDrawing);
+
+      canvas.removeEventListener('touchstart', startDrawing);
+      canvas.removeEventListener('touchmove', drawTouch);
+      canvas.removeEventListener('touchend', stopDrawing);
+    };
+  }, [isDrawing]);
+
+  const getSignatureImage = () => {
+    const canvas = canvasRef.current;
+    return canvas.toDataURL('image/png');
+  };
+
+  const handleSave = () => {
+    const image = getSignatureImage();
+    onSave(image);
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div>
+      <canvas
+        ref={canvasRef}
+        width="350"
+        height="150"
+        style={{ border: '1px solid black', touchAction: 'none' }}
+      />
+      <button onClick={handleSave}>保存签名</button>
+    </div>
+  );
+};
+
+const ReceiptWithSignature = ({ signatureImage, productName }) => {
+  const handlePrint = () => {
+    const currentDate = new Date().toLocaleString();
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>商品回执</title>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            .receipt { width: 300px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; }
+            .signature { margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <h2>商品回执</h2>
+            <p><strong>日期时间：</strong> ${currentDate}</p>
+            <p><strong>商品名称：</strong> ${productName}</p>
+            <div class="signature">
+              <p><strong>客户签名：</strong></p>
+              <img src="${signatureImage}" alt="Signature" style="width: 100%; max-width: 300px;" />
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  return (
+    <div>
+      <h2>回执预览</h2>
+      <div style={{ border: '1px solid #ccc', padding: '20px', maxWidth: '300px' }}>
+        <p><strong>日期时间：</strong> {new Date().toLocaleString()}</p>
+        <p><strong>商品名称：</strong> {productName}</p>
+        <div>
+          <p><strong>客户签名：</strong></p>
+          <img src={signatureImage} alt="Signature" style={{ width: '100%', maxWidth: '300px' }} />
         </div>
       </div>
+      <button onClick={handlePrint}>使用浏览器功能打印回执</button>
+    </div>
+  );
+};
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
+
+
+
+
+// 注册网络适配器
+const ReceWifiWithSignature = ({ signatureImage, productName }) => {
+
+  const handlePrint = async () => {
+    try {
+      alert("请改为你的局域网打印机Id")
+      const printer = await ipp.Printer('http://192.168.2.148:9100'); // 替换为你的打印机IP
+
+
+      const fileBuffer = Buffer.from(
+        "This is a test print from React application!",
+        "utf-8"
+      );
+
+      const msg = {
+        "operation-attributes-tag": {
+          "requesting-user-name": "React User",
+          "job-name": "React Print Job",
+          "document-format": "text/plain"
+        },
+        data: fileBuffer
+      };
+
+      printer.execute("Print-Job", msg, (err, res) => {
+        if (err) {
+          console.error(err);
+        } else {
+          console.log(res);
+        }
+      });
+
+
+    } catch (error) {
+      console.error('打印失败:', error);
+      alert('打印失败，请检查打印机连接和配置');
+    }
+
+  };
+
+  return (
+    <div>
+      <button onClick={handlePrint}>打印</button>
+    </div>
+  );
+
+
+};
+
+
+
+
+
+const App = () => {
+
+  const [signatureImage, setSignatureImage] = useState(null);
+  const [productName, setProductName] = useState('');
+
+  const handleSaveSignature = (image) => {
+    setSignatureImage(image);
+  };
+
+  return (
+    <main>
+
+      <div style={{ padding: '20px' }}>
+        <h1>商品回执签名系统</h1>
+        <div>
+          <label htmlFor="productName">商品名称：</label>
+          <input
+            type="text"
+            id="productName"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+          />
+        </div>
+        <SignatureComponent onSave={handleSaveSignature} />
+        {signatureImage && <ReceiptWithSignature signatureImage={signatureImage} productName={productName} />}
+
+
+        <main className="container mx-auto p-4">
+          <h1 className="">WiFi 打印示例</h1>
+          <p>
+            code:
+            const printer = await ipp.Printer('http://192.168.2.148:9100'); // 替换为你的打印机IP
+          </p>
+
+          <ReceWifiWithSignature />
+        </main>
+
+        <main className="container mx-auto p-4">
+          <h1 className="">蓝牙 打印示例</h1>
+          <p>
+            暂时没有蓝牙打印机，测试中
+            使用这这个 react-native-esc-pos-printer 库;
+            // 连接到打印机
+            await BluetoothManager.connect('YOUR_PRINTER_MAC_ADDRESS');
+          </p>
+        </main>
+
       </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
     </main>
   );
-}
+};
+
+export default App;
